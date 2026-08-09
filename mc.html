@@ -44,11 +44,17 @@ function render(x){
  const names=["🟥","🟦","🟩","🟨","🟪"],colors=["red","blue","green","yellow","purple"];
  qs("race").innerHTML=Object.values(x.teams).map((t,i)=>{const pct=Math.min(100,Number(t.score)||0);return `<div class="lane"><div class="n">${names[i]} ${t.name} — ${t.score} điểm</div><div class="line"></div><div class="swimDuck ${colors[i]}" id="duck${i}" style="left:calc(${pct}% - 30px)"><span class="body">🦆</span><span class="wave">〰️〰️</span><span class="splash">💦</span></div><div class="finish">🏁</div></div>`}).join("");
  qs("links").innerHTML=[1,2,3,4,5].map(i=>`<p>🔔 <b>Nhóm ${i}</b>: <code>${location.origin}/?group=${i}</code></p>`).join("");
- if(x.currentQuestion>=0 && x.questions[x.currentQuestion]) showQuestion(x.questions[x.currentQuestion],!!x.answerRevealed);
+ if(x.currentQuestion>=0 && x.questions[x.currentQuestion]) showQuestion(x.questions[x.currentQuestion]);
  else {qs("qbox").textContent="Chưa mở câu hỏi";qs("opts").innerHTML="";}
  updateNextButton();
 }
-function showQuestion(q,reveal){qs("qbox").textContent=q.q;qs("opts").innerHTML=q.options.map((o,i)=>`<div class="opt ${reveal&&i===q.answer?'correct':''}">${"ABCD"[i]}. ${o}${reveal&&i===q.answer?' ✓':''}</div>`).join("")}
+
+// Màn hình MC sẽ LUÔN LUÔN tô sáng đáp án đúng (có màu xanh và dấu ✓)
+function showQuestion(q){
+ qs("qbox").textContent=q.q;
+ qs("opts").innerHTML=q.options.map((o,i)=>`<div class="opt ${i===q.answer?'correct':''}">${"ABCD"[i]}. ${o}${i===q.answer?' ✓':''}</div>`).join("");
+}
+
 function updateNextButton(){if(!state)return;const n=state.currentQuestion+1;if(!state.questions.length) qs("nextBtn").textContent="▶️ MỞ CÂU ĐẦU TIÊN";else if(n>=state.questions.length) qs("nextBtn").textContent="🏁 ĐÃ HẾT CÂU HỎI";else qs("nextBtn").textContent=state.currentQuestion<0?"▶️ MỞ CÂU ĐẦU TIÊN":`▶️ CÂU TIẾP THEO (${n+1})`;qs("nextBtn").disabled=!state.questions.length||n>=state.questions.length;}
 function nextQuestion(){if(!state||!state.questions.length)return alert("Hãy nhập câu hỏi trước.");const n=state.currentQuestion+1;if(n>=state.questions.length)return; s.emit("nextQuestion")}
 function addQuestion(){let q=qs("newQ").value.trim(),opts=[0,1,2,3].map(i=>qs("a"+i).value.trim()),ans=Number(qs("correctAns").value);if(!q||opts.some(x=>!x))return alert("Điền đủ câu hỏi và 4 đáp án.");const arr=(state?.questions||[]).concat([{q,options:opts,answer:ans}]);s.emit("saveQuestions",arr);["newQ","a0","a1","a2","a3"].forEach(id=>qs(id).value="");}
@@ -60,7 +66,7 @@ function resetGame(){if(confirm("Xóa toàn bộ điểm và thành viên?"))s.e
 function saveScore(){s.emit("setScoring",{teamStep:Number(qs("teamStep").value),personalPoint:Number(qs("personalPoint").value)})}
 s.on("state",render);
 s.on("buzzed",x=>{qs("winner").textContent=`🚨 ${x.name} — NHÓM ${x.group} GIÀNH QUYỀN!`;qs("status").textContent="Hãy kiểm tra câu trả lời rồi bấm ĐÚNG hoặc SAI."});
-s.on("questionOpened",x=>{qs("winner").textContent="🔔 Câu hỏi đang mở — chờ chuông!";qs("status").textContent="Các nhóm có thể bấm chuông.";showQuestion(x.question,false)});
+s.on("questionOpened",x=>{qs("winner").textContent="🔔 Câu hỏi đang mở — chờ chuông!";qs("status").textContent="Các nhóm có thể bấm chuông.";showQuestion(x.question)});
 s.on("result",x=>{qs("winner").textContent=`✅ ${x.name} — Nhóm ${x.group} đúng! +${x.teamStep} nhóm / +${x.personalPoint} cá nhân`;qs("status").textContent="Đáp án đúng đã được bật sáng. Bấm CÂU TIẾP THEO để sang câu mới."});
 s.on("wrong",x=>{qs("winner").textContent=`❌ ${x.name} sai — các nhóm còn lại được CƯỚP!`;qs("status").textContent="Chờ nhóm khác bấm chuông."});
 s.on("resetBuzz",()=>qs("winner").textContent="🔔 Chuông đã reset — tiếp tục giành quyền!");
