@@ -21,7 +21,8 @@ let game = {
   race:[0,0,0,0,0],
   teamStep:2,
   personalPoint:1,
-  history:[]
+  history:[],
+  answerRevealed:false
 };
 
 function snapshot(){ return JSON.parse(JSON.stringify(game)); }
@@ -56,7 +57,20 @@ io.on("connection", socket=>{
     game.questionOpen=true;
     game.locked=false;
     game.winner=null;
+    game.answerRevealed=false;
     io.emit("questionOpened",{index,question:game.questions[index]});
+    io.emit("state",snapshot());
+  });
+
+  socket.on("nextQuestion",()=>{
+    const next=game.currentQuestion+1;
+    if(next<0 || next>=game.questions.length) return;
+    game.currentQuestion=next;
+    game.questionOpen=true;
+    game.locked=false;
+    game.winner=null;
+    game.answerRevealed=false;
+    io.emit("questionOpened",{index:next,question:game.questions[next]});
     io.emit("state",snapshot());
   });
 
@@ -73,7 +87,7 @@ io.on("connection", socket=>{
     t.correct += 1;
     t.members[name].score += game.personalPoint;
     t.members[name].correct += 1;
-    game.race[Number(group)-1] = Math.min(100, Math.min(10, game.race[Number(group)-1]+1));
+    game.race[Number(group)-1] = t.score;
     game.history.push({type:"correct",group,name,q:game.currentQuestion,time:Date.now()});
     game.questionOpen=false; game.locked=true;
     io.emit("result",{ok:true,group,name,teamStep:game.teamStep,personalPoint:game.personalPoint});
@@ -84,14 +98,14 @@ io.on("connection", socket=>{
     if(!game.winner) return;
     const old=game.winner;
     game.history.push({type:"wrong",...old,q:game.currentQuestion,time:Date.now()});
-    game.winner=null; game.locked=false;
+    game.winner=null; game.locked=false; game.answerRevealed=false;
     io.emit("wrong",old);
     io.emit("state",snapshot());
   });
 
   socket.on("resetBuzz",()=>{
     if(game.questionOpen){
-      game.winner=null; game.locked=false;
+      game.winner=null; game.locked=false; game.answerRevealed=false;
       io.emit("resetBuzz");
       io.emit("state",snapshot());
     }
@@ -119,7 +133,7 @@ io.on("connection", socket=>{
       game.teams[i].score=0; game.teams[i].correct=0; game.teams[i].members={};
     }
     game.race=[0,0,0,0,0]; game.currentQuestion=-1; game.questionOpen=false;
-    game.locked=false; game.winner=null; game.history=[];
+    game.locked=false; game.winner=null; game.history=[]; game.answerRevealed=false;
     io.emit("fullReset"); io.emit("state",snapshot());
   });
 });

@@ -1,5 +1,5 @@
 <!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Duck Race — Màn hình trình chiếu</title><link rel="stylesheet" href="/style.css"><style>
-body{overflow:hidden}.screen{max-width:1500px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center}.bigq{font-size:42px;font-weight:900;line-height:1.2;margin:20px 0}.bigopts{display:grid;grid-template-columns:1fr 1fr;gap:16px}.bigopt{font-size:28px;font-weight:800;padding:22px;border-radius:18px;background:#ffffff10;border:2px solid #ffffff20}.alert{font-size:30px;font-weight:900;text-align:center;padding:18px;border-radius:18px;background:#0004;margin:18px 0}.score{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.score .s{padding:14px;border-radius:15px;background:#ffffff10;text-align:center;font-weight:900}.lane{height:62px}.duck{top:13px}.small{font-size:15px;opacity:.7}@media(max-width:900px){.bigq{font-size:28px}.bigopt{font-size:20px}.score{grid-template-columns:1fr 1fr}.bigopts{grid-template-columns:1fr}}
+body{overflow:hidden}.screen{max-width:1500px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center}.bigq{font-size:42px;font-weight:900;line-height:1.2;margin:20px 0}.bigopts{display:grid;grid-template-columns:1fr 1fr;gap:16px}.bigopt{font-size:28px;font-weight:800;padding:22px;border-radius:18px;background:#ffffff10;border:2px solid #ffffff20}.bigopt.correct{background:#1fbf5b;color:#fff;border-color:#fff;box-shadow:0 0 24px #1fbf5b;transform:scale(1.02)}.alert{font-size:30px;font-weight:900;text-align:center;padding:18px;border-radius:18px;background:#0004;margin:18px 0}.score{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.score .s{padding:14px;border-radius:15px;background:#ffffff10;text-align:center;font-weight:900}.lane{height:62px}.duck{top:13px}.small{font-size:15px;opacity:.7}@media(max-width:900px){.bigq{font-size:28px}.bigopt{font-size:20px}.score{grid-template-columns:1fr 1fr}.bigopts{grid-template-columns:1fr}}
 
 .swimDuck{position:absolute;width:88px;height:62px;transform-origin:center bottom;animation:duckFloat .55s ease-in-out infinite alternate;z-index:5}
 .swimDuck .body{position:absolute;left:18px;top:7px;font-size:42px;line-height:1}
@@ -32,13 +32,13 @@ document.getElementById("race").innerHTML=Object.values(x.teams).map((t,i)=>`<di
 Object.values(x.teams).forEach((t,i)=>{const d=document.getElementById("duck"+i);if(d&&(lastRace[i]??0)!==(x.race[i]??0)){d.classList.remove("moving","burst");void d.offsetWidth;d.classList.add("moving","burst");setTimeout(()=>d.classList.remove("burst"),650);setTimeout(()=>d.classList.remove("moving"),900);}});lastRace=x.race||[];
 if(x.currentQuestion>=0 && x.questions[x.currentQuestion]){
  const q=x.questions[x.currentQuestion]; document.getElementById("q").textContent=q.q;
- document.getElementById("opts").innerHTML=q.options.map((o,i)=>`<div class="bigopt">${"ABCD"[i]}. ${o}</div>`).join("");
+ document.getElementById("opts").innerHTML=q.options.map((o,i)=>`<div class="bigopt ${x.answerRevealed&&i===q.answer?"correct": ""}">${"ABCD"[i]}. ${o}${x.answerRevealed&&i===q.answer?" ✓":""}</div>`).join("");
  document.getElementById("qnum").textContent=`Câu ${x.currentQuestion+1}`;
 }}
 s.on("state",render);
 s.on("questionOpened",x=>{document.getElementById("alert").textContent="🔔 CÂU HỎI ĐÃ MỞ — AI BẤM NHANH NHẤT?";document.getElementById("q").textContent=x.question.q;document.getElementById("opts").innerHTML=x.question.options.map((o,i)=>`<div class="bigopt">${"ABCD"[i]}. ${o}</div>`).join("")});
 s.on("buzzed",x=>document.getElementById("alert").textContent=`🚨 ${x.name} — NHÓM ${x.group} GIÀNH QUYỀN!`);
 s.on("wrong",x=>document.getElementById("alert").textContent=`❌ ${x.name} SAI — CÁC NHÓM KHÁC ĐƯỢC CƯỚP!`);
-s.on("result",x=>document.getElementById("alert").textContent=`🎉 NHÓM ${x.group} TRẢ LỜI ĐÚNG! +${x.teamStep} ĐIỂM`);
+s.on("result",x=>{document.getElementById("alert").textContent=`🎉 NHÓM ${x.group} TRẢ LỜI ĐÚNG! +${x.teamStep} ĐIỂM`;});
 s.on("resetBuzz",()=>document.getElementById("alert").textContent="🔔 CHUÔNG ĐÃ MỞ LẠI — GIÀNH QUYỀN!");
 </script></body></html>
