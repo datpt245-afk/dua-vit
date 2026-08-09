@@ -73,7 +73,7 @@ io.on("connection", socket=>{
     t.correct += 1;
     t.members[name].score += game.personalPoint;
     t.members[name].correct += 1;
-    game.race[Number(group)-1] = Math.min(10, game.race[Number(group)-1]+1);
+    game.race[Number(group)-1] = Math.min(100, Math.min(10, game.race[Number(group)-1]+1));
     game.history.push({type:"correct",group,name,q:game.currentQuestion,time:Date.now()});
     game.questionOpen=false; game.locked=true;
     io.emit("result",{ok:true,group,name,teamStep:game.teamStep,personalPoint:game.personalPoint});

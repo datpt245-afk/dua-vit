@@ -1,11 +1,12 @@
-DUCK RACE — TÁCH MC VÀ MÀN HÌNH TRÌNH CHIẾU
+DUCK RACE — BẢN CUỐI
 
-MC: /mc.html
-Màn hình chiếu: /screen.html
-Chuông: /?group=1 đến /?group=5
-
-MC nhìn thấy đáp án đúng. screen.html KHÔNG hiển thị đáp án đúng.
-
-BẢN SWIMMING DUCKS:
-Vịt bơi liên tục bằng hoạt ảnh lắc thân, sóng và nước bắn; khi trả lời đúng và vịt tiến lên sẽ có hiệu ứng tăng tốc/burst.
-Màu: Nhóm 1 đỏ, 2 xanh dương, 3 xanh lá, 4 vàng, 5 tím.
+LUẬT:
+- Vịt chỉ là hình ảnh biểu diễn điểm, không quyết định thắng thua.
+- Mỗi câu đúng cộng điểm cho nhóm.
+- Khi hết toàn bộ câu hỏi, nhóm có TỔNG ĐIỂM CAO NHẤT thắng.
+- Vịt có thể chạm cuối đường đua trước nhưng game vẫn tiếp tục.
+- MC: /mc.html
+- Màn hình trình chiếu: /screen.html
+- Chuông nhóm: /?group=1 ... /?group=5
+- Đáp án đúng chỉ được hiển thị/sáng sau khi MC xác nhận ĐÚNG.
+- Câu hỏi được mở tuần tự.
