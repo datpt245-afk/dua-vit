@@ -39,12 +39,13 @@
 <script>
 const s=io();let state=null,selected=-1;
 const qs=id=>document.getElementById(id);
+let lastRace=[];
 function render(x){state=x;
 qs("teams").innerHTML=Object.values(x.teams).map(t=>`<tr><td>${t.name}</td><td>${t.correct}</td><td><b>${t.score}</b></td></tr>`).join("");
 let people=[];Object.entries(x.teams).forEach(([g,t])=>Object.entries(t.members).forEach(([name,v])=>people.push({name,g,...v})));people.sort((a,b)=>b.score-a.score||b.correct-a.correct);
 qs("people").innerHTML=people.map((p,i)=>`<tr><td>${i+1}</td><td>${p.name}</td><td>Nhóm ${p.g}</td><td>${p.correct}</td><td><b>${p.score}</b></td></tr>`).join("");
 qs("bank").innerHTML=x.questions.length?x.questions.map((q,i)=>`<div class="card" style="margin:7px 0;padding:12px"><b>${i+1}. ${q.q}</b><div class="muted">Đúng: ${"ABCD"[q.answer]}</div><div class="row" style="margin-top:8px"><button class="btn primary" onclick="selectQ(${i})">Chọn</button><button class="btn bad" onclick="deleteQ(${i})">Xóa</button></div></div>`).join(""):"<p class='muted'>Chưa có câu hỏi.</p>";
-qs("race").innerHTML=Object.values(x.teams).map((t,i)=>`<div class="lane"><div class="n">${["🟥","🟦","🟩","🟨","🟪"][i]} ${t.name}</div><div class="line"></div><div class="duck" style="left:${130+(x.race[i]||0)*((innerWidth>900?700:400)/10)}px">🦆</div><div class="finish">🏁</div></div>`).join("");
+qs("race").innerHTML=Object.values(x.teams).map((t,i)=>`<div class="lane"><div class="n">${["🟥","🟦","🟩","🟨","🟪"][i]} ${t.name}</div><div class="line"></div><div class="swimDuck ${["red","blue","green","yellow","purple"][i]}" id="duck${i}" style="left:${100+(x.race[i]||0)*((innerWidth>900?700:400)/10)}px"><span class="body">🦆</span><span class="wave">〰️〰️</span><span class="splash">💦</span></div><div class="finish">🏁</div></div>`).join("");
 if(x.winner) qs("winner").textContent=`🚨 ${x.winner.name} — NHÓM ${x.winner.group} GIÀNH QUYỀN!`;
 qs("links").innerHTML=[1,2,3,4,5].map(i=>`<p>🔔 <b>Nhóm ${i}</b>: <code>${location.origin}/?group=${i}</code></p>`).join("");
 if(x.currentQuestion>=0 && x.questions[x.currentQuestion]) showQuestion(x.questions[x.currentQuestion]);

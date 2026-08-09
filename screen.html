@@ -1,0 +1,44 @@
+<!doctype html><html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Duck Race — Màn hình trình chiếu</title><link rel="stylesheet" href="/style.css"><style>
+body{overflow:hidden}.screen{max-width:1500px;margin:auto;padding:24px}.head{display:flex;justify-content:space-between;align-items:center}.bigq{font-size:42px;font-weight:900;line-height:1.2;margin:20px 0}.bigopts{display:grid;grid-template-columns:1fr 1fr;gap:16px}.bigopt{font-size:28px;font-weight:800;padding:22px;border-radius:18px;background:#ffffff10;border:2px solid #ffffff20}.alert{font-size:30px;font-weight:900;text-align:center;padding:18px;border-radius:18px;background:#0004;margin:18px 0}.score{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}.score .s{padding:14px;border-radius:15px;background:#ffffff10;text-align:center;font-weight:900}.lane{height:62px}.duck{top:13px}.small{font-size:15px;opacity:.7}@media(max-width:900px){.bigq{font-size:28px}.bigopt{font-size:20px}.score{grid-template-columns:1fr 1fr}.bigopts{grid-template-columns:1fr}}
+
+.swimDuck{position:absolute;width:88px;height:62px;transform-origin:center bottom;animation:duckFloat .55s ease-in-out infinite alternate;z-index:5}
+.swimDuck .body{position:absolute;left:18px;top:7px;font-size:42px;line-height:1}
+.swimDuck .wave{position:absolute;left:0;top:40px;font-size:23px;opacity:.8;animation:waveMove .42s linear infinite alternate}
+.swimDuck .splash{position:absolute;left:57px;top:3px;font-size:17px;animation:splash .5s ease-in-out infinite alternate}
+.swimDuck.moving{animation:duckSwim .22s ease-in-out infinite alternate}
+.swimDuck.burst{animation:duckBurst .65s ease-out}
+.swimDuck.red .body{filter:hue-rotate(315deg) saturate(2)}
+.swimDuck.blue .body{filter:hue-rotate(165deg) saturate(2.4)}
+.swimDuck.green .body{filter:hue-rotate(75deg) saturate(2)}
+.swimDuck.yellow .body{filter:hue-rotate(35deg) saturate(2.2) brightness(1.15)}
+.swimDuck.purple .body{filter:hue-rotate(250deg) saturate(1.8)}
+@keyframes duckFloat{from{transform:translateY(0) rotate(-3deg)}to{transform:translateY(-5px) rotate(3deg)}}
+@keyframes duckSwim{from{transform:translateY(0) rotate(-8deg)}to{transform:translateY(-8px) rotate(8deg)}}
+@keyframes waveMove{from{transform:translateX(-6px)}to{transform:translateX(8px)}}
+@keyframes splash{from{transform:translateY(3px) scale(.75)}to{transform:translateY(-5px) scale(1.2)}}
+@keyframes duckBurst{0%{transform:scale(1)}45%{transform:scale(1.25) rotate(-8deg)}100%{transform:scale(1) rotate(0)}}
+</style></head><body><div class="screen">
+<div class="head"><div><h1>🦆 DUCK RACE</h1><div class="small">MÀN HÌNH TRÌNH CHIẾU</div></div><div id="qnum"></div></div>
+<div id="alert" class="alert">🎤 MC đang chuẩn bị câu hỏi...</div>
+<div id="q" class="bigq">Chờ câu hỏi...</div><div id="opts" class="bigopts"></div>
+<div class="card"><h2>🏁 ĐƯỜNG ĐUA</h2><div id="race"></div></div>
+<div class="card"><h2>🏆 ĐIỂM CÁC NHÓM</h2><div id="score" class="score"></div></div></div>
+<script src="/socket.io/socket.io.js"></script><script>
+const s=io();
+let lastRace=[];
+function render(x){
+document.getElementById("score").innerHTML=Object.values(x.teams).map(t=>`<div class="s">${t.name}<br><span style="font-size:26px">${t.score}</span> điểm</div>`).join("");
+document.getElementById("race").innerHTML=Object.values(x.teams).map((t,i)=>`<div class="lane"><div class="n">${t.name}</div><div class="line"></div><div class="swimDuck ${["red","blue","green","yellow","purple"][i]}" id="duck${i}" style="left:${100+(x.race[i]||0)*((innerWidth>900?700:400)/10)}px"><span class="body">🦆</span><span class="wave">〰️〰️</span><span class="splash">💦</span></div><div class="finish">🏁</div></div>`).join("");
+Object.values(x.teams).forEach((t,i)=>{const d=document.getElementById("duck"+i);if(d&&(lastRace[i]??0)!==(x.race[i]??0)){d.classList.remove("moving","burst");void d.offsetWidth;d.classList.add("moving","burst");setTimeout(()=>d.classList.remove("burst"),650);setTimeout(()=>d.classList.remove("moving"),900);}});lastRace=x.race||[];
+if(x.currentQuestion>=0 && x.questions[x.currentQuestion]){
+ const q=x.questions[x.currentQuestion]; document.getElementById("q").textContent=q.q;
+ document.getElementById("opts").innerHTML=q.options.map((o,i)=>`<div class="bigopt">${"ABCD"[i]}. ${o}</div>`).join("");
+ document.getElementById("qnum").textContent=`Câu ${x.currentQuestion+1}`;
+}}
+s.on("state",render);
+s.on("questionOpened",x=>{document.getElementById("alert").textContent="🔔 CÂU HỎI ĐÃ MỞ — AI BẤM NHANH NHẤT?";document.getElementById("q").textContent=x.question.q;document.getElementById("opts").innerHTML=x.question.options.map((o,i)=>`<div class="bigopt">${"ABCD"[i]}. ${o}</div>`).join("")});
+s.on("buzzed",x=>document.getElementById("alert").textContent=`🚨 ${x.name} — NHÓM ${x.group} GIÀNH QUYỀN!`);
+s.on("wrong",x=>document.getElementById("alert").textContent=`❌ ${x.name} SAI — CÁC NHÓM KHÁC ĐƯỢC CƯỚP!`);
+s.on("result",x=>document.getElementById("alert").textContent=`🎉 NHÓM ${x.group} TRẢ LỜI ĐÚNG! +${x.teamStep} ĐIỂM`);
+s.on("resetBuzz",()=>document.getElementById("alert").textContent="🔔 CHUÔNG ĐÃ MỞ LẠI — GIÀNH QUYỀN!");
+</script></body></html>
