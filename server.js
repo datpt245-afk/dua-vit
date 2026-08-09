@@ -89,7 +89,9 @@ io.on("connection", socket=>{
     t.members[name].correct += 1;
     game.race[Number(group)-1] = t.score;
     game.history.push({type:"correct",group,name,q:game.currentQuestion,time:Date.now()});
-    game.questionOpen=false; game.locked=true;
+    game.questionOpen=false; 
+    game.locked=true;
+    game.answerRevealed=true; // Bật cờ hiển thị đáp án đúng trên các màn hình
     io.emit("result",{ok:true,group,name,teamStep:game.teamStep,personalPoint:game.personalPoint});
     io.emit("state",snapshot());
   });
