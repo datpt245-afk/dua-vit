@@ -91,7 +91,7 @@ io.on("connection", socket=>{
     game.history.push({type:"correct",group,name,q:game.currentQuestion,time:Date.now()});
     game.questionOpen=false; 
     game.locked=true;
-    game.answerRevealed=true; // Bật cờ hiển thị đáp án đúng trên các màn hình
+    game.answerRevealed=true; // Bật cờ để màn hình trình chiếu sáng đáp án đúng
     io.emit("result",{ok:true,group,name,teamStep:game.teamStep,personalPoint:game.personalPoint});
     io.emit("state",snapshot());
   });
