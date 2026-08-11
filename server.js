@@ -1,143 +1,22 @@
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const { Server } = require("socket.io");
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-app.use(express.static(__dirname));
-
-const teams = {};
-for (let i=1;i<=5;i++) teams[i]={id:i,name:`Nhóm ${i}`,score:0,correct:0,members:{}};
-
-let game = {
-  teams,
-  questions: [],
-  currentQuestion: -1,
-  questionOpen: false,
-  locked:false,
-  winner:null,
-  race:[0,0,0,0,0],
-  teamStep:2,
-  personalPoint:1,
-  history:[],
-  answerRevealed:false
-};
-
-function snapshot(){ return JSON.parse(JSON.stringify(game)); }
-
-io.on("connection", socket=>{
-  socket.emit("state", snapshot());
-
-  socket.on("joinMember", ({group,name})=>{
-    group=String(group);
-    name=String(name||"").trim().slice(0,40);
-    if(!game.teams[group] || !name) return;
-    if(!game.teams[group].members[name]) game.teams[group].members[name]={score:0,correct:0};
-    socket.data.group=group; socket.data.name=name;
-    socket.emit("joined",{group,name});
-    io.emit("state",snapshot());
-  });
-
-  socket.on("buzz", ({group,name})=>{
-    group=String(group); name=String(name||"");
-    if(!game.questionOpen || game.locked || !game.teams[group]) return;
-    if(!game.teams[group].members[name]) game.teams[group].members[name]={score:0,correct:0};
-    game.locked=true;
-    game.winner={group,name};
-    io.emit("buzzed",{group,name});
-    io.emit("state",snapshot());
-  });
-
-  socket.on("openQuestion", ({index})=>{
-    index=Number(index);
-    if(index<0 || index>=game.questions.length) return;
-    game.currentQuestion=index;
-    game.questionOpen=true;
-    game.locked=false;
-    game.winner=null;
-    game.answerRevealed=false;
-    io.emit("questionOpened",{index,question:game.questions[index]});
-    io.emit("state",snapshot());
-  });
-
-  socket.on("nextQuestion",()=>{
-    const next=game.currentQuestion+1;
-    if(next<0 || next>=game.questions.length) return;
-    game.currentQuestion=next;
-    game.questionOpen=true;
-    game.locked=false;
-    game.winner=null;
-    game.answerRevealed=false;
-    io.emit("questionOpened",{index:next,question:game.questions[next]});
-    io.emit("state",snapshot());
-  });
-
-  socket.on("closeQuestion",()=>{
-    game.questionOpen=false; game.locked=true; game.winner=null;
-    io.emit("state",snapshot());
-  });
-
-  socket.on("correct",()=>{
-    if(!game.winner) return;
-    const {group,name}=game.winner, t=game.teams[group];
-    if(!t.members[name]) t.members[name]={score:0,correct:0};
-    t.score += game.teamStep;
-    t.correct += 1;
-    t.members[name].score += game.personalPoint;
-    t.members[name].correct += 1;
-    game.race[Number(group)-1] = t.score;
-    game.history.push({type:"correct",group,name,q:game.currentQuestion,time:Date.now()});
-    game.questionOpen=false; 
-    game.locked=true;
-    game.answerRevealed=true; // Bật cờ để màn hình trình chiếu sáng đáp án đúng
-    io.emit("result",{ok:true,group,name,teamStep:game.teamStep,personalPoint:game.personalPoint});
-    io.emit("state",snapshot());
-  });
-
-  socket.on("wrong",()=>{
-    if(!game.winner) return;
-    const old=game.winner;
-    game.history.push({type:"wrong",...old,q:game.currentQuestion,time:Date.now()});
-    game.winner=null; game.locked=false; game.answerRevealed=false;
-    io.emit("wrong",old);
-    io.emit("state",snapshot());
-  });
-
-  socket.on("resetBuzz",()=>{
-    if(game.questionOpen){
-      game.winner=null; game.locked=false; game.answerRevealed=false;
-      io.emit("resetBuzz");
-      io.emit("state",snapshot());
-    }
-  });
-
-  socket.on("saveQuestions",(questions)=>{
-    if(!Array.isArray(questions)) return;
-    game.questions=questions.map(q=>({
-      q:String(q.q||""),
-      options:Array.isArray(q.options)?q.options.slice(0,4).map(x=>String(x)):[],
-      answer:Math.max(0,Math.min(3,Number(q.answer)||0))
-    })).filter(q=>q.q && q.options.length===4);
-    io.emit("questionsSaved",game.questions);
-    io.emit("state",snapshot());
-  });
-
-  socket.on("setScoring",({teamStep,personalPoint})=>{
-    game.teamStep=Math.max(1,Number(teamStep)||2);
-    game.personalPoint=Math.max(1,Number(personalPoint)||1);
-    io.emit("state",snapshot());
-  });
-
-  socket.on("resetGame",()=>{
-    for(let i=1;i<=5;i++){
-      game.teams[i].score=0; game.teams[i].correct=0; game.teams[i].members={};
-    }
-    game.race=[0,0,0,0,0]; game.currentQuestion=-1; game.questionOpen=false;
-    game.locked=false; game.winner=null; game.history=[]; game.answerRevealed=false;
-    io.emit("fullReset"); io.emit("state",snapshot());
-  });
+const express=require("express"),http=require("http"),{Server}=require("socket.io");
+const app=express(),server=http.createServer(app),io=new Server(server),PORT=process.env.PORT||3000;
+app.use(express.static("public"));
+const S={started:false,finished:false,qi:-1,questions:[],teams:[1,2,3,4,5].map(id=>({id,name:"Nhóm "+id,score:0})),players:new Map(),inds:new Map(),locked:new Set(),active:null,timer:null,endsAt:null};
+const pub=()=>({started:S.started,finished:S.finished,currentQuestion:S.qi,questionCount:S.questions.length,teams:S.teams,lockedGroups:[...S.locked],activeResponder:S.active,timerEndsAt:S.endsAt});
+const bc=()=>io.emit("state",pub());
+function clear(){if(S.timer)clearTimeout(S.timer);S.timer=null}
+function next(){clear();S.active=null;S.endsAt=null;S.locked.clear();S.qi++;if(S.qi>=S.questions.length){S.started=false;S.finished=true;io.emit("gameFinished",{teams:S.teams,individuals:[...S.inds.values()].sort((a,b)=>b.score-a.score)});return bc()}io.emit("questionStarted",{number:S.qi+1});bc()}
+function start(){if(!S.questions.length)return false;S.started=true;S.finished=false;S.qi=-1;S.teams.forEach(t=>t.score=0);S.inds.clear();next();return true}
+function answer(id,idx,timeout=false){if(!S.active||S.active.socketId!==id)return;clear();let p=S.players.get(id),q=S.questions[S.qi],ok=!timeout&&Number(idx)===q.answer;if(ok){let pts=q.points||10,t=S.teams.find(t=>t.id===p.group);t.score+=pts;let k=p.group+":"+p.name,v=S.inds.get(k)||{name:p.name,group:p.group,score:0};v.score+=pts;S.inds.set(k,v);io.emit("answerResult",{correct:true,name:p.name,group:p.group,points:pts});S.active=null;S.endsAt=null;bc();setTimeout(()=>S.started&&!S.finished&&next(),1500)}else{S.locked.add(p.group);io.emit("answerResult",{correct:false,name:p.name,group:p.group,timedOut:timeout,points:0});S.active=null;S.endsAt=null;if(S.locked.size>=5){io.emit("questionSkipped",{number:S.qi+1});bc();setTimeout(()=>S.started&&!S.finished&&next(),1000)}else{io.emit("buzzReopened",{lockedGroups:[...S.locked]});bc()}}}
+io.on("connection",s=>{
+ s.emit("state",pub());
+ s.on("joinPlayer",d=>{let name=String(d?.name||"").trim().slice(0,40),group=Number(d?.group);if(!name||group<1||group>5)return s.emit("joinError","Tên hoặc nhóm không hợp lệ.");S.players.set(s.id,{name,group});let k=group+":"+name;if(!S.inds.has(k))S.inds.set(k,{name,group,score:0});s.emit("joined",{name,group});bc()});
+ s.on("buzz",()=>{if(!S.started||S.active)return;let p=S.players.get(s.id);if(!p||S.locked.has(p.group))return;let q=S.questions[S.qi];S.active={socketId:s.id,name:p.name,group:p.group};S.endsAt=Date.now()+10000;s.emit("answerAccess",{question:{q:q.q,options:q.options},endsAt:S.endsAt});io.emit("buzzWinner",{name:p.name,group:p.group});bc();S.timer=setTimeout(()=>answer(s.id,null,true),10000)});
+ s.on("submitAnswer",i=>answer(s.id,Number(i),false));
+ s.on("mcSaveQuestions",qs=>{if(S.started)return s.emit("mcError","Không thể sửa khi game đang chạy.");S.questions=(Array.isArray(qs)?qs:[]).map(q=>({q:String(q.q||"").trim(),options:Array.isArray(q.options)?q.options.slice(0,4).map(String):[],answer:Number(q.answer),points:Number(q.points)||10})).filter(q=>q.q&&q.options.length===4&&q.options.every(Boolean)&&q.answer>=0&&q.answer<=3);s.emit("mcQuestionsSaved",{count:S.questions.length});bc()});
+ s.on("mcStart",()=>{if(!start())s.emit("mcError","Chưa có câu hỏi hợp lệ.")});
+ s.on("mcReset",()=>{clear();S.started=false;S.finished=false;S.qi=-1;S.questions=[];S.teams.forEach(t=>t.score=0);S.players.clear();S.inds.clear();S.locked.clear();S.active=null;S.endsAt=null;io.emit("gameReset");bc()});
+ s.on("disconnect",()=>{S.players.delete(s.id);if(S.active?.socketId===s.id)answer(s.id,null,true)});
 });
-
-server.listen(3000,()=>console.log("DUCK RACE: http://localhost:3000"));
+server.listen(PORT,()=>console.log("Duck Race on "+PORT));
